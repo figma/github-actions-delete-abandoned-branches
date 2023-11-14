@@ -46,9 +46,5 @@ runs:
       run: pip install -r requirements.txt
       shell: bash
     - name: Run Action
-      id: get-square
-      run: python3 main.py --ignore-branches=${{ inputs.ignore_branches }} \
-        --last-commit-age-days=${{ inputs.last_commit_age_days }} --allowed-prefixes=${{ inputs.allowed_prefixes }} \
-        --dry-run=${{ inputs.dry_run }} --github-token=${{ inputs.github_token }} \
-        --github-base-url=${{ inputs.github_base_url }}
+      run: python3 main.py --ignore-branches=${{ inputs.ignore_branches }} --last-commit-age-days=${{ inputs.last_commit_age_days }} --allowed-prefixes=${{ inputs.allowed_prefixes }} --dry-run=${{ inputs.dry_run }} --github-token=${{ inputs.github_token }} --github-base-url=${{ inputs.github_base_url }}
       shell: bash
