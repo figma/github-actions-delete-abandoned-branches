@@ -39,6 +39,7 @@ outputs:
   deleted_branches: # id of output
     description: 'Branches that have been deleted, if any'
 
+# test
 runs:
   using: 'composite'
   steps:
