@@ -52,7 +52,7 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
-  # Allow workflow to be manually run from the GitHub UI
+  # Allow workflow to be manually run from the GitHub UI test
   workflow_dispatch:
 
 jobs:
