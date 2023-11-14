@@ -11,7 +11,8 @@ def run_action(options: Options) -> list:
         last_commit_age_days=options.last_commit_age_days,
         ignore_branches=options.ignore_branches,
         allowed_prefixes=options.allowed_prefixes,
-        branch_limit=options.branch_limit
+        branch_limit=options.branch_limit,
+        only_closed_prs=options.only_closed_prs,
     )
 
     print(f"Branches queued for deletion: {branches}")

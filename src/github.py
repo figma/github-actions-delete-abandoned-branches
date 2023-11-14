@@ -23,7 +23,8 @@ class Github:
             last_commit_age_days: int,
             ignore_branches: list[str],
             allowed_prefixes: list[str],
-            branch_limit: int
+            branch_limit: int,
+            only_closed_prs: bool,
     ) -> list[str]:
         if branch_limit < 1:
             return []
@@ -76,6 +77,11 @@ class Github:
                     if found_prefix is False:
                         print(f'Ignoring `{branch_name}` because it does not match any provided allowed_prefixes')
                         continue
+                
+                # If only_closed_prs is True, move on if branch is not base for a closed pull request
+                if only_closed_prs is True and self.has_closed_pulls(commit_hash=commit_hash) is False:
+                    print(f'Ignoring `{branch_name}` because only_closed_prs is True and it does not have closed pull requests')
+                    continue
 
                 # Move on if commit is in an open pull request
                 if self.has_open_pulls(commit_hash=commit_hash):
@@ -148,6 +154,25 @@ class Github:
         pull_request: dict
         for pull_request in response.json():
             if pull_request.get('state') == 'open':
+                return True
+
+        return False
+
+    def has_closed_pulls(self, commit_hash: str) -> bool:
+        """
+        Returns true if commit is part of a closed pull request
+        """
+        url = f'{self.base_url}/repos/{self.repo}/commits/{commit_hash}/pulls'
+        headers = self.make_headers()
+        headers['accept'] = 'application/vnd.github.groot-preview+json'
+
+        response = requests.get(url=url, headers=headers)
+        if response.status_code != 200:
+            raise RuntimeError(f'Failed to make request to {url}. {response} {response.json()}')
+
+        pull_request: dict
+        for pull_request in response.json():
+            if pull_request.get('state') == 'closed':
                 return True
 
         return False
