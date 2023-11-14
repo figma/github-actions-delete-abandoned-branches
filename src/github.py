@@ -16,10 +16,10 @@ class Github:
         }
 
     def get_paginated_branches_url(self, page: int = 0) -> str:
-        return f'{self.base_url}/repos/{self.repo}/branches?protected=false&per_page=100&page={page}'
+        return f'{self.base_url}/repos/{self.repo}/branches?protected=false&per_page=30&page={page}'
 
     def get_paginated_closed_pull_requests_url(self, page: int = 0) -> str:
-        return f'{self.base_url}/repos/{self.repo}/pulls?state=closed&per_page=100&page={page}'
+        return f'{self.base_url}/repos/{self.repo}/pulls?state=closed&per_page=30&page={page}'
 
     def get_commit_url(self, commit: str) -> str:
         return f'{self.base_url}/repos/{self.repo}/commits/{commit}'
