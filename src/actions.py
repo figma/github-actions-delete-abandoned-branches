@@ -5,7 +5,12 @@ from src.io import Options
 def run_action(options: Options) -> list:
     print(f"Starting github action to cleanup old branches. Input: {options}")
 
-    github = Github(repo=options.github_repo, token=options.github_token, base_url=options.github_base_url)
+    github = Github(
+        repo=options.github_repo,
+        token=options.github_token,
+        base_url=options.github_base_url,
+        owner=options.github_owner
+    )
 
     if options.only_closed_prs is True:
         branches = github.get_deletable_branches_from_closed_pull_requests(
