@@ -149,16 +149,16 @@ class Github:
                 branch_name = pull_request.get('head', {}).get('ref')
                 commit_hash = pull_request.get('head', {}).get('sha')
 
-                print(f'Analyzing pull request `{html_url}`...')
+                print(f'Analyzing pull request {html_url}')
 
                 # Ignored merged pull requests because the branch is auto-deleted
                 if merged_at is not None:
-                    print(f'Ignoring `{html_url}` because it is merged')
+                    print(f'Ignoring {html_url} because it is merged')
                     continue
 
                 # Move on if last updated at is newer than last_commit_age_days
                 if self.is_updated_at_older_than(updated_at=updated_at, older_than_days=last_commit_age_days) is False:
-                    print(f'Ignoring `{html_url}` because last updated time is newer than {last_commit_age_days} days')
+                    print(f'Ignoring {html_url} because last updated time is newer than {last_commit_age_days} days')
                     continue
 
                 if branch_name in ignore_branches:

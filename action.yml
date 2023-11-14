@@ -42,6 +42,7 @@ inputs:
 outputs:
   deleted_branches: # id of output
     description: 'Branches that have been deleted, if any'
+    value: ${{ steps.delete-branches-action.outputs.deleted_branches }}
 
 runs:
   using: 'composite'
@@ -54,6 +55,7 @@ runs:
       run: pip install -r "${{ github.action_path }}/requirements.txt"
       shell: bash
     - name: Run Action
+      id: delete-branches-action
       run: |
         python3 "${{ github.action_path }}/main.py" --ignore-branches=${{ inputs.ignore_branches }} \
           --last-commit-age-days=${{ inputs.last_commit_age_days }} --allowed-prefixes=${{ inputs.allowed_prefixes }} \
