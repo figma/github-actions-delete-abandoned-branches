@@ -22,8 +22,12 @@ class Github:
             self,
             last_commit_age_days: int,
             ignore_branches: list[str],
-            allowed_prefixes: list[str]
+            allowed_prefixes: list[str],
+            branch_limit: int
     ) -> list[str]:
+        if branch_limit < 1:
+            return []
+
         # Default branch might not be protected
         default_branch = self.get_default_branch()
 
@@ -90,6 +94,10 @@ class Github:
 
                 print(f'Branch `{branch_name}` meets the criteria for deletion')
                 deletable_branches.append(branch_name)
+
+                # Exit early if we have reached our branch limit
+                if len(deletable_branches) == branch_limit:
+                    return deletable_branches
 
             # Re-request next page
             current_page += 1
@@ -181,4 +189,4 @@ class Github:
         delta = datetime.now() - commit_date
         print(f'Last commit was on {commit_date_raw} ({delta.days} days ago)')
 
-        return delta.days > older_than_days
+        return delta.days >= older_than_days

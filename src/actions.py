@@ -10,7 +10,8 @@ def run_action(options: Options) -> list:
     branches = github.get_deletable_branches(
         last_commit_age_days=options.last_commit_age_days,
         ignore_branches=options.ignore_branches,
-        allowed_prefixes=options.allowed_prefixes
+        allowed_prefixes=options.allowed_prefixes,
+        branch_limit=options.branch_limit
     )
 
     print(f"Branches queued for deletion: {branches}")

@@ -12,8 +12,9 @@ class Options:
             allowed_prefixes: list[str],
             github_token: str,
             github_repo: str,
+            branch_limit: int,
             dry_run: bool = True,
-            github_base_url: str = DEFAULT_GITHUB_API_URL
+            github_base_url: str = DEFAULT_GITHUB_API_URL,
     ):
         self.ignore_branches = ignore_branches
         self.last_commit_age_days = last_commit_age_days
@@ -22,6 +23,7 @@ class Options:
         self.github_repo = github_repo
         self.dry_run = dry_run
         self.github_base_url = github_base_url
+        self.branch_limit = branch_limit
 
 
 class InputParser:
@@ -58,6 +60,13 @@ class InputParser:
             help="Whether to delete branches at all. Defaults to 'yes'. Possible values: yes, no (case sensitive)"
         )
 
+        parser.add_argument(
+            "--branch-limit",
+            help="The max number of branches that can be deleted",
+            default=100,
+            type=int,
+        )
+
         return parser.parse_args()
 
     def parse_input(self) -> Options:
@@ -83,7 +92,8 @@ class InputParser:
             dry_run=dry_run,
             github_token=args.github_token,
             github_repo=getenv('GITHUB_REPOSITORY'),
-            github_base_url=args.github_base_url
+            github_base_url=args.github_base_url,
+            branch_limit=args.branch_limit
         )
 
 
