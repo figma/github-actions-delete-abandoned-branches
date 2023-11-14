@@ -34,4 +34,5 @@ jobs:
           last_commit_age_days: 0
           dry_run: yes
           ignore_branches: test_prefix/one,test_prefix/two,test_prefix_ignored/one
-          branch_limit: 1
+          branch_limit: 10
+          only_closed_prs: yes

@@ -15,6 +15,7 @@ class Options:
             branch_limit: int,
             dry_run: bool = True,
             github_base_url: str = DEFAULT_GITHUB_API_URL,
+            only_closed_prs: bool = False,
     ):
         self.ignore_branches = ignore_branches
         self.last_commit_age_days = last_commit_age_days
@@ -24,6 +25,7 @@ class Options:
         self.dry_run = dry_run
         self.github_base_url = github_base_url
         self.branch_limit = branch_limit
+        self.only_closed_prs = only_closed_prs
 
 
 class InputParser:
@@ -67,6 +69,13 @@ class InputParser:
             type=int,
         )
 
+        parser.add_argument(
+            "--only-closed-prs",
+            choices=["yes", "no"],
+            default="no",
+            help="Whether we're only deleting branches that belong to closed PRs. Defaults to 'no'. Possible values: yes, no (case sensitive)"
+        )
+
         return parser.parse_args()
 
     def parse_input(self) -> Options:
@@ -84,6 +93,7 @@ class InputParser:
 
         # Dry run can only be either `true` or `false`, as strings due to github actions input limitations
         dry_run = False if args.dry_run == 'no' else True
+        only_closed_prs = False if args.only_closed_prs == 'no' else True
 
         return Options(
             ignore_branches=ignore_branches,
@@ -93,7 +103,8 @@ class InputParser:
             github_token=args.github_token,
             github_repo=getenv('GITHUB_REPOSITORY'),
             github_base_url=args.github_base_url,
-            branch_limit=args.branch_limit
+            branch_limit=args.branch_limit,
+            only_closed_prs=only_closed_prs,
         )
 
 
