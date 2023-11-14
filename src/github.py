@@ -19,7 +19,7 @@ class Github:
         return f'{self.base_url}/repos/{self.repo}/branches?protected=false&per_page=30&page={page}'
 
     def get_paginated_closed_pull_requests_url(self, page: int = 0) -> str:
-        return f'{self.base_url}/repos/{self.repo}/pulls?state=closed&per_page=30&page={page}'
+        return f'{self.base_url}/repos/{self.repo}/pulls?state=closed&sort=updated&direction=asc&per_page=30&page={page}'
 
     def get_commit_url(self, commit: str) -> str:
         return f'{self.base_url}/repos/{self.repo}/commits/{commit}'
@@ -143,22 +143,22 @@ class Github:
 
         while len(closed_pull_requests) > 0:
             for pull_request in closed_pull_requests:
-                url = pull_request.get('url')
+                html_url = pull_request.get('html_url')
                 merged_at = pull_request.get('merged_at')
                 updated_at = pull_request.get('updated_at')
                 branch_name = pull_request.get('head', {}).get('ref')
                 commit_hash = pull_request.get('head', {}).get('sha')
 
-                print(f'Analyzing pull request `{url}`...')
+                print(f'Analyzing pull request `{html_url}`...')
 
                 # Ignored merged pull requests because the branch is auto-deleted
                 if merged_at is not None:
-                    print(f'Ignoring `{url}` because it is merged')
+                    print(f'Ignoring `{html_url}` because it is merged')
                     continue
 
                 # Move on if last updated at is newer than last_commit_age_days
                 if self.is_updated_at_older_than(updated_at=updated_at, older_than_days=last_commit_age_days) is False:
-                    print(f'Ignoring `{url}` because last updated time is newer than {last_commit_age_days} days')
+                    print(f'Ignoring `{html_url}` because last updated time is newer than {last_commit_age_days} days')
                     continue
 
                 if branch_name in ignore_branches:
