@@ -7,13 +7,20 @@ def run_action(options: Options) -> list:
 
     github = Github(repo=options.github_repo, token=options.github_token, base_url=options.github_base_url)
 
-    branches = github.get_deletable_branches(
-        last_commit_age_days=options.last_commit_age_days,
-        ignore_branches=options.ignore_branches,
-        allowed_prefixes=options.allowed_prefixes,
-        branch_limit=options.branch_limit,
-        only_closed_prs=options.only_closed_prs,
-    )
+    if options.only_closed_prs is True:
+        branches = github.get_deletable_branches_from_closed_pull_requests(
+            last_commit_age_days=options.last_commit_age_days,
+            ignore_branches=options.ignore_branches,
+            allowed_prefixes=options.allowed_prefixes,
+            branch_limit=options.branch_limit,
+        )
+    else:
+        branches = github.get_deletable_branches(
+            last_commit_age_days=options.last_commit_age_days,
+            ignore_branches=options.ignore_branches,
+            allowed_prefixes=options.allowed_prefixes,
+            branch_limit=options.branch_limit,
+        )
 
     print(f"Branches queued for deletion: {branches}")
     if options.dry_run is False:

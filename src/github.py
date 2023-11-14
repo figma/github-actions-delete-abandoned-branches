@@ -16,7 +16,13 @@ class Github:
         }
 
     def get_paginated_branches_url(self, page: int = 0) -> str:
-        return f'{self.base_url}/repos/{self.repo}/branches?protected=false&per_page=30&page={page}'
+        return f'{self.base_url}/repos/{self.repo}/branches?protected=false&per_page=100&page={page}'
+
+    def get_paginated_closed_pull_requests_url(self, page: int = 0) -> str:
+        return f'{self.base_url}/repos/{self.repo}/pulls?state=closed&per_page=100&page={page}'
+
+    def get_commit_url(self, commit: str) -> str:
+        return f'{self.base_url}/repos/{self.repo}/commits/{commit}'
 
     def get_deletable_branches(
             self,
@@ -24,7 +30,6 @@ class Github:
             ignore_branches: list[str],
             allowed_prefixes: list[str],
             branch_limit: int,
-            only_closed_prs: bool,
     ) -> list[str]:
         if branch_limit < 1:
             return []
@@ -77,11 +82,6 @@ class Github:
                     if found_prefix is False:
                         print(f'Ignoring `{branch_name}` because it does not match any provided allowed_prefixes')
                         continue
-                
-                # If only_closed_prs is True, move on if branch is not base for a closed pull request
-                if only_closed_prs is True and self.has_closed_pulls(commit_hash=commit_hash) is False:
-                    print(f'Ignoring `{branch_name}` because only_closed_prs is True and it does not have closed pull requests')
-                    continue
 
                 # Move on if commit is in an open pull request
                 if self.has_open_pulls(commit_hash=commit_hash):
@@ -113,6 +113,94 @@ class Github:
                 raise RuntimeError(f'Failed to make request to {url}. {response} {response.json()}')
 
             branches: list = response.json()
+
+        return deletable_branches
+
+    def get_deletable_branches_from_closed_pull_requests(
+            self,
+            last_commit_age_days: int,
+            ignore_branches: list[str],
+            allowed_prefixes: list[str],
+            branch_limit: int,
+    ) -> list[str]:
+        if branch_limit < 1:
+            return []
+
+        # Default branch might not be protected
+        default_branch = self.get_default_branch()
+
+        url = self.get_paginated_closed_pull_requests_url()
+        headers = self.make_headers()
+
+        response = requests.get(url=url, headers=headers)
+        if response.status_code != 200:
+            raise RuntimeError(f'Failed to make request to {url}. {response} {response.json()}')
+
+        deletable_branches = []
+        branch: dict
+        closed_pull_requests: list = response.json()
+        current_page = 1
+
+        while len(closed_pull_requests) > 0:
+            for pull_request in closed_pull_requests:
+                url = pull_request.get('url')
+                merged_at = pull_request.get('merged_at')
+                updated_at = pull_request.get('updated_at')
+                branch_name = pull_request.get('head', {}).get('ref')
+                commit_hash = pull_request.get('head', {}).get('sha')
+
+                print(f'Analyzing pull request `{url}`...')
+
+                # Ignored merged pull requests because the branch is auto-deleted
+                if merged_at is not None:
+                    print(f'Ignoring `{url}` because it is merged')
+                    continue
+
+                # Move on if last updated at is newer than last_commit_age_days
+                if self.is_updated_at_older_than(updated_at=updated_at, older_than_days=last_commit_age_days) is False:
+                    print(f'Ignoring `{url}` because last updated time is newer than {last_commit_age_days} days')
+                    continue
+
+                if branch_name in ignore_branches:
+                    print(f'Ignoring `{branch_name}` because it is on the list of ignored branches')
+                    continue
+
+                # If allowed_prefixes are provided, only consider branches that match one of the prefixes
+                if len(allowed_prefixes) > 0:
+                    found_prefix = False
+                    for prefix in allowed_prefixes:
+                        if branch_name.startswith(prefix):
+                            found_prefix = True
+                    if found_prefix is False:
+                        print(f'Ignoring `{branch_name}` because it does not match any provided allowed_prefixes')
+                        continue
+
+                # Move on if branch is base for a pull request
+                if self.is_pull_request_base(branch=branch_name):
+                    print(f'Ignoring `{branch_name}` because it is the base for a pull request of another branch')
+                    continue
+
+                # Move on if last commit is newer than last_commit_age_days
+                commit_url = self.get_commit_url(commit=commit_hash)
+                if self.is_commit_older_than(commit_url=commit_url, older_than_days=last_commit_age_days) is False:
+                    print(f'Ignoring `{branch_name}` because last commit is newer than {last_commit_age_days} days')
+                    continue
+
+                print(f'Branch `{branch_name}` meets the criteria for deletion')
+                deletable_branches.append(branch_name)
+
+                # Exit early if we have reached our branch limit
+                if len(deletable_branches) == branch_limit:
+                    return deletable_branches
+
+            # Re-request next page
+            current_page += 1
+
+            response = requests.get(url=self.get_paginated_closed_pull_requests_url(page=current_page), headers=headers)
+            if response.status_code != 200:
+                raise RuntimeError(f'Failed to make request to {url}. {response} {response.json()}')
+
+            closed_pull_requests: list = response.json()
 
         return deletable_branches
 
@@ -158,25 +246,6 @@ class Github:
 
         return False
 
-    def has_closed_pulls(self, commit_hash: str) -> bool:
-        """
-        Returns true if commit is part of a closed pull request
-        """
-        url = f'{self.base_url}/repos/{self.repo}/commits/{commit_hash}/pulls'
-        headers = self.make_headers()
-        headers['accept'] = 'application/vnd.github.groot-preview+json'
-
-        response = requests.get(url=url, headers=headers)
-        if response.status_code != 200:
-            raise RuntimeError(f'Failed to make request to {url}. {response} {response.json()}')
-
-        pull_request: dict
-        for pull_request in response.json():
-            if pull_request.get('state') == 'closed':
-                return True
-
-        return False
-
     def is_pull_request_base(self, branch: str) -> bool:
         """
         Returns true if the given branch is base for another pull request.
@@ -213,5 +282,14 @@ class Github:
 
         delta = datetime.now() - commit_date
         print(f'Last commit was on {commit_date_raw} ({delta.days} days ago)')
+
+        return delta.days >= older_than_days
+
+    def is_updated_at_older_than(self, updated_at: str, older_than_days: int):
+        # Dates are formatted like so: '2021-02-04T10:52:40Z'
+        updated_date = datetime.strptime(updated_at, "%Y-%m-%dT%H:%M:%SZ")
+
+        delta = datetime.now() - updated_date
+        print(f'PR was last updated on {updated_at} ({delta.days} days ago)')
 
         return delta.days >= older_than_days
