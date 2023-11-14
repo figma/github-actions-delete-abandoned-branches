@@ -1,1 +1,2 @@
 requests==2.*
+python_graphql_client==0.4.3

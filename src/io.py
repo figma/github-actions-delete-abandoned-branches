@@ -12,6 +12,7 @@ class Options:
             allowed_prefixes: list[str],
             github_token: str,
             github_repo: str,
+            github_owner: str,
             branch_limit: int,
             dry_run: bool = True,
             github_base_url: str = DEFAULT_GITHUB_API_URL,
@@ -22,6 +23,7 @@ class Options:
         self.allowed_prefixes = allowed_prefixes
         self.github_token = github_token
         self.github_repo = github_repo
+        self.github_owner = github_owner
         self.dry_run = dry_run
         self.github_base_url = github_base_url
         self.branch_limit = branch_limit
@@ -102,6 +104,7 @@ class InputParser:
             dry_run=dry_run,
             github_token=args.github_token,
             github_repo=getenv('GITHUB_REPOSITORY'),
+            github_owner=getenv('GITHUB_REPOSITORY_OWNER'),
             github_base_url=args.github_base_url,
             branch_limit=args.branch_limit,
             only_closed_prs=only_closed_prs,

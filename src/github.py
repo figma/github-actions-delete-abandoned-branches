@@ -2,12 +2,17 @@ from datetime import datetime
 
 from src import requests
 
+from python_graphql_client import GraphqlClient
+
+import json
 
 class Github:
-    def __init__(self, repo: str, token: str, base_url: str):
+    def __init__(self, repo: str, token: str, base_url: str, owner: str):
         self.token = token
         self.repo = repo
         self.base_url = base_url
+        self.owner = owner
+        self.client = GraphqlClient(endpoint="https://api.github.com/graphql")
 
     def make_headers(self) -> dict:
         return {
@@ -17,12 +22,6 @@ class Github:
 
     def get_paginated_branches_url(self, page: int = 0) -> str:
         return f'{self.base_url}/repos/{self.repo}/branches?protected=false&per_page=30&page={page}'
-
-    def get_paginated_closed_pull_requests_url(self, page: int = 0) -> str:
-        return f'{self.base_url}/repos/{self.repo}/pulls?state=closed&sort=updated&direction=asc&per_page=30&page={page}'
-
-    def get_commit_url(self, commit: str) -> str:
-        return f'{self.base_url}/repos/{self.repo}/commits/{commit}'
 
     def get_deletable_branches(
             self,
@@ -129,39 +128,34 @@ class Github:
         # Default branch might not be protected
         default_branch = self.get_default_branch()
 
-        url = self.get_paginated_closed_pull_requests_url()
-        headers = self.make_headers()
-
-        response = requests.get(url=url, headers=headers)
-        if response.status_code != 200:
-            raise RuntimeError(f'Failed to make request to {url}. {response} {response.json()}')
+        response = self.fetch_pull_requests()
+        closed_pull_requests = response[0]
+        after_cursor = response[1]
+        has_next_page = response[2]
 
         deletable_branches = []
         branch: dict
-        closed_pull_requests: list = response.json()
-        current_page = 1
 
         while len(closed_pull_requests) > 0:
             for pull_request in closed_pull_requests:
-                html_url = pull_request.get('html_url')
-                merged_at = pull_request.get('merged_at')
-                updated_at = pull_request.get('updated_at')
-                branch_name = pull_request.get('head', {}).get('ref')
+                html_url = pull_request.get('url')
+                updated_at = pull_request.get('updatedAt')
+                branch_name = pull_request.get('headRefName')
+                head_branch = pull_request.get('headRef')
 
                 print(f'Analyzing pull request {html_url}')
-
-                # Ignored merged pull requests because the branch is auto-deleted
-                if merged_at is not None:
-                    print(f'Ignoring {html_url} because it is merged')
-                    continue
-
-                # Move on if last updated at is newer than last_commit_age_days
-                if self.is_updated_at_older_than(updated_at=updated_at, older_than_days=last_commit_age_days) is False:
-                    print(f'Ignoring {html_url} because last updated time is newer than {last_commit_age_days} days')
+                
+                if head_branch is None:
+                    print(f'Ignoring {html_url} because head branch is already deleted')
                     continue
 
                 if branch_name in ignore_branches:
                     print(f'Ignoring `{branch_name}` because it is on the list of ignored branches')
+                    continue
+                
+                # Immediately discard default branch
+                if branch_name == default_branch:
+                    print(f'Ignoring `{branch_name}` because it is the default branch')
                     continue
 
                 # If allowed_prefixes are provided, only consider branches that match one of the prefixes
@@ -174,11 +168,13 @@ class Github:
                         print(f'Ignoring `{branch_name}` because it does not match any provided allowed_prefixes')
                         continue
                 
-                branch = self.get_branch_info(branch=branch_name)
-                # Move on if branch is already deleted
-                if branch is None:
-                    print(f'Branch `{branch_name}` does not exist')
+                # Move on if last updated at is newer than last_commit_age_days
+                if self.is_updated_at_older_than(updated_at=updated_at, older_than_days=last_commit_age_days) is False:
+                    print(f'Ignoring {html_url} because last updated time is newer than {last_commit_age_days} days')
                     continue
+
+                
+                branch = self.get_branch_info(branch=branch_name)
 
                 # Don't delete protected branches
                 if branch.get('protected') is True:
@@ -210,14 +206,13 @@ class Github:
                 if len(deletable_branches) == branch_limit:
                     return deletable_branches
 
-            # Re-request next page
-            current_page += 1
-
-            response = requests.get(url=self.get_paginated_closed_pull_requests_url(page=current_page), headers=headers)
-            if response.status_code != 200:
-                raise RuntimeError(f'Failed to make request to {url}. {response} {response.json()}')
-
-            closed_pull_requests: list = response.json()
+            if has_next_page is True:
+                response = self.fetch_pull_requests(after_cursor=after_cursor)
+                closed_pull_requests = response[0]
+                after_cursor = response[1]
+                has_next_page = response[2]
+            else: 
+                break
 
         return deletable_branches
 
@@ -324,3 +319,64 @@ class Github:
         print(f'PR was last updated on {updated_at} ({delta.days} days ago)')
 
         return delta.days >= older_than_days
+
+    def make_pull_request_query(self, after_cursor: str = None):
+        query = """
+                query {
+                    repository(owner: OWNER, name: REPO) {
+                        pullRequests(
+                            states: CLOSED,
+                            first: 100,
+                            after: AFTER,
+                            orderBy: {
+                                direction:ASC,
+                                field: UPDATED_AT
+                            }
+                        ) {
+                            totalCount
+                            nodes {
+                                ... on PullRequest {
+                                    title
+                                    url
+                                    updatedAt
+                                    headRef {
+                                        name
+                                    }
+                                    headRefName
+                                }
+                            }
+                            pageInfo {
+                                hasNextPage,
+                                endCursor
+                            }
+                        }
+                    }
+                }
+                """
+        return query.replace(
+            "AFTER", '"{}"'.format(after_cursor) if after_cursor else "null"
+            ).replace(
+                "OWNER", '"{}"'.format(self.owner)
+            ).replace(
+                "REPO", '"{}"'.format(self.repo.split('/')[-1])
+            )
+
+
+    def fetch_pull_requests(self, after_cursor: str = None):
+        pull_requests = []
+
+        data = self.client.execute(
+            query=self.make_pull_request_query(after_cursor),
+            headers={"Authorization": "Bearer {}".format(self.token)},
+        )
+
+        if "data" not in data:
+            raise RuntimeError("Could not make GraphQL request to get pull requests")
+
+        for pull_request in data["data"]["repository"]["pullRequests"]["nodes"]:
+            pull_requests.append(pull_request)
+
+        after_cursor = data["data"]["repository"]["pullRequests"]["pageInfo"]["endCursor"]
+        has_next_page = data["data"]["repository"]["pullRequests"]["pageInfo"]["hasNextPage"]
+
+        return (pull_requests, after_cursor, has_next_page)
