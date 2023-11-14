@@ -326,7 +326,7 @@ class Github:
                     repository(owner: OWNER, name: REPO) {
                         pullRequests(
                             states: CLOSED,
-                            first: 100,
+                            first: 30,
                             after: AFTER,
                             orderBy: {
                                 direction:ASC,
