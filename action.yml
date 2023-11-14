@@ -30,6 +30,10 @@ inputs:
     description: "The API base url to be used in requests to GitHub Enterprise"
     required: false
     default: "https://api.github.com"
+  branch_limit:
+    description: "The max number of branches that can be deleted"
+    required: false
+    default: "100"
 
 outputs:
   deleted_branches: # id of output
@@ -50,5 +54,5 @@ runs:
         python3 main.py --ignore-branches=${{ inputs.ignore_branches }} \
           --last-commit-age-days=${{ inputs.last_commit_age_days }} --allowed-prefixes=${{ inputs.allowed_prefixes }} \
           --dry-run=${{ inputs.dry_run }} --github-token=${{ inputs.github_token }} \
-          --github-base-url=${{ inputs.github_base_url }}
+          --github-base-url=${{ inputs.github_base_url }} --branch-limit=${{ inputs.branch_limit }}
       shell: bash

@@ -31,6 +31,7 @@ jobs:
       - uses: ./
         with:
           github_token: ${{ github.token }}
-          last_commit_age_days: 100
-          dry_run: no
+          last_commit_age_days: 0
+          dry_run: yes
           ignore_branches: test_prefix/one,test_prefix/two,test_prefix_ignored/one
+          branch_limit: 1
