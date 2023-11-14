@@ -177,7 +177,7 @@ class Github:
                 branch = self.get_branch_info(branch=branch_name)
                 # Move on if branch is already deleted
                 if branch is None:
-                    print(f'Branch `{branch}` does not exist')
+                    print(f'Branch `{branch_name}` does not exist')
                     continue
 
                 # Don't delete protected branches
