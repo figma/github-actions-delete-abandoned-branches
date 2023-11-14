@@ -25,6 +25,9 @@ jobs:
           days-before-stale: 30
           days-before-close: 7
 
+      - name: Checkout
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 #v3.6.0
+
       - uses: ./
         with:
           github_token: ${{ github.token }}
