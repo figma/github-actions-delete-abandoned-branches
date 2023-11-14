@@ -29,6 +29,7 @@ jobs:
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 #v3.6.0
 
       - uses: ./
+        id: delete_stuff
         with:
           github_token: ${{ github.token }}
           last_commit_age_days: 0
@@ -36,3 +37,7 @@ jobs:
           ignore_branches: test_prefix/one,test_prefix/two,test_prefix_ignored/one
           branch_limit: 10
           only_closed_prs: yes
+      
+      - name: Get output
+        run: |
+          echo "${{ steps.delete_stuff.outputs.deleted_branches }}"
