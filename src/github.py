@@ -147,7 +147,6 @@ class Github:
                 merged_at = pull_request.get('merged_at')
                 updated_at = pull_request.get('updated_at')
                 branch_name = pull_request.get('head', {}).get('ref')
-                commit_hash = pull_request.get('head', {}).get('sha')
 
                 print(f'Analyzing pull request {html_url}')
 
@@ -174,6 +173,25 @@ class Github:
                     if found_prefix is False:
                         print(f'Ignoring `{branch_name}` because it does not match any provided allowed_prefixes')
                         continue
+                
+                branch = self.get_branch_info(branch=branch_name)
+                # Move on if branch is already deleted
+                if branch is None:
+                    print(f'Branch `{branch}` does not exist')
+                    continue
+
+                # Don't delete protected branches
+                if branch.get('protected') is True:
+                    print(f'Ignoring `{branch_name}` because it is protected')
+                    continue
+
+                commit_hash = branch.get('commit', {}).get('sha')
+                commit_url = branch.get('commit', {}).get('url')
+
+                # Move on if commit is in an open pull request
+                if self.has_open_pulls(commit_hash=commit_hash):
+                    print(f'Ignoring `{branch_name}` because it has open pull requests')
+                    continue
 
                 # Move on if branch is base for a pull request
                 if self.is_pull_request_base(branch=branch_name):
@@ -181,7 +199,6 @@ class Github:
                     continue
 
                 # Move on if last commit is newer than last_commit_age_days
-                commit_url = self.get_commit_url(commit=commit_hash)
                 if self.is_commit_older_than(commit_url=commit_url, older_than_days=last_commit_age_days) is False:
                     print(f'Ignoring `{branch_name}` because last commit is newer than {last_commit_age_days} days')
                     continue
@@ -226,6 +243,20 @@ class Github:
             raise RuntimeError('Error: could not determine default branch. This is a big one.')
 
         return response.json().get('default_branch')
+    
+    def get_branch_info(self, branch: str):
+        url = f'{self.base_url}/repos/{self.repo}/branches/{branch}'
+        headers = self.make_headers()
+
+        response = requests.get(url=url, headers=headers)
+
+        if response.status_code == 404:
+            return None
+
+        if response.status_code != 200:
+            raise RuntimeError(f'Failed to make request to {url}. {response} {response.json()}')
+
+        return response.json()
 
     def has_open_pulls(self, commit_hash: str) -> bool:
         """
