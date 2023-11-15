@@ -4,8 +4,6 @@ from src import requests
 
 from python_graphql_client import GraphqlClient
 
-import json
-
 class Github:
     def __init__(self, repo: str, token: str, base_url: str, owner: str):
         self.token = token
@@ -329,16 +327,16 @@ class Github:
 
         return delta.days >= older_than_days
 
-    def make_pull_request_query(self, after_cursor: str = None):
+    def make_pull_request_query(self, count: int, after_cursor: str = None):
         query = """
                 query {
                     repository(owner: OWNER, name: REPO) {
                         pullRequests(
                             states: CLOSED,
-                            first: 10,
+                            first: COUNT,
                             after: AFTER,
                             orderBy: {
-                                direction:ASC,
+                                direction: ASC,
                                 field: UPDATED_AT
                             }
                         ) {
@@ -363,24 +361,36 @@ class Github:
                 }
                 """
         return query.replace(
-            "AFTER", '"{}"'.format(after_cursor) if after_cursor else "null"
+                "AFTER", '"{}"'.format(after_cursor) if after_cursor else "null"
             ).replace(
                 "OWNER", '"{}"'.format(self.owner)
             ).replace(
                 "REPO", '"{}"'.format(self.repo.split('/')[-1])
+            ).replace(
+                "COUNT", str(count)
             )
 
 
     def fetch_pull_requests(self, after_cursor: str = None):
         pull_requests = []
+        counts = [30, 20, 10]
+        data = {}
+        
+        for count in counts:
+            try:
+                data = self.client.execute(
+                    query=self.make_pull_request_query(count, after_cursor),
+                    headers={"Authorization": "Bearer {}".format(self.token)},
+                )
+                if "data" in data:
+                    break
 
-        data = self.client.execute(
-            query=self.make_pull_request_query(after_cursor),
-            headers={"Authorization": "Bearer {}".format(self.token)},
-        )
+            except Exception as e:
+                print(e, data)
+                print(f"Could not get GraphQL result, retrying with count: {count}")
 
         if "data" not in data:
-            raise RuntimeError("Could not make GraphQL request to get pull requests")
+            raise RuntimeError("Could not get pull request info from GraphQL after three tries")
 
         for pull_request in data["data"]["repository"]["pullRequests"]["nodes"]:
             pull_requests.append(pull_request)
