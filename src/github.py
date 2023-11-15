@@ -1,4 +1,5 @@
 from datetime import datetime
+from time import sleep
 
 from src import requests
 
@@ -388,6 +389,7 @@ class Github:
             except Exception as e:
                 print(e, data)
                 print(f"Could not get GraphQL result, retrying with count: {count}")
+                sleep(60/count)
 
         if "data" not in data:
             raise RuntimeError("Could not get pull request info from GraphQL after three tries")
