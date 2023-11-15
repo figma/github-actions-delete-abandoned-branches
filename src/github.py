@@ -67,9 +67,14 @@ class Github:
                 if branch.get('protected') is True:
                     print(f'Ignoring `{branch_name}` because it is protected')
                     continue
-
-                if branch_name in ignore_branches:
-                    print(f'Ignoring `{branch_name}` because it is on the list of ignored branches')
+                
+                found_ignored_prefix = False
+                for prefix in ignore_branches:
+                    if branch_name.startswith(prefix):
+                        found_ignored_prefix = True
+                        break
+                if found_ignored_prefix is True:
+                    print(f'Ignoring `{branch_name}` because it is on the list of ignored branch prefixes')
                     continue
 
                 # If allowed_prefixes are provided, only consider branches that match one of the prefixes
@@ -149,13 +154,18 @@ class Github:
                     print(f'Ignoring {html_url} because head branch is already deleted')
                     continue
 
-                if branch_name in ignore_branches:
-                    print(f'Ignoring `{branch_name}` because it is on the list of ignored branches')
-                    continue
-                
                 # Immediately discard default branch
                 if branch_name == default_branch:
                     print(f'Ignoring `{branch_name}` because it is the default branch')
+                    continue
+                
+                found_ignored_prefix = False
+                for prefix in ignore_branches:
+                    if branch_name.startswith(prefix):
+                        found_ignored_prefix = True
+                        break
+                if found_ignored_prefix is True:
+                    print(f'Ignoring `{branch_name}` because it is on the list of ignored branch prefixes')
                     continue
 
                 # If allowed_prefixes are provided, only consider branches that match one of the prefixes
@@ -173,7 +183,6 @@ class Github:
                     print(f'Ignoring {html_url} because last updated time is newer than {last_commit_age_days} days')
                     continue
 
-                
                 branch = self.get_branch_info(branch=branch_name)
 
                 # Don't delete protected branches
