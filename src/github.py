@@ -232,7 +232,8 @@ class Github:
             response = requests.request(method='DELETE', url=url, headers=self.make_headers())
             if response.status_code != 204:
                 print(f'Failed to delete branch `{branch}`')
-                raise RuntimeError(f'Failed to make DELETE request to {url}. {response} {response.json()}')
+                # Warn if deleting a single branch failed, but continue the rest of the action
+                print(f'Failed to make DELETE request to {url}. {response} {response.json()}')
 
             print(f'Branch `{branch}` DELETED!')
 
