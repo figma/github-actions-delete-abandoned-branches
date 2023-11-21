@@ -338,7 +338,7 @@ class Github:
                             first: COUNT,
                             after: AFTER,
                             orderBy: {
-                                direction: ASC,
+                                direction: DESC,
                                 field: UPDATED_AT
                             }
                         ) {
