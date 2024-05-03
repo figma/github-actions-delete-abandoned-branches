@@ -400,8 +400,8 @@ class Github:
                 print(f"Error fetching GraphQL result:\n{e}\ndata: {data}")
                 attempts -= 1
                 if attempts > 0:
-                    exponential_backoff_seconds = 3 ** (5 - attempts)
-                    print(f"Retrying in {exponential_backoff_seconds} seconds (attempt {5 - attempts})\n")
+                    exponential_backoff_seconds = 3 ** (4 - attempts)
+                    print(f"Retrying in {exponential_backoff_seconds} seconds (attempt {4 - attempts})\n")
                     sleep(exponential_backoff_seconds)
 
         if "data" not in data:
