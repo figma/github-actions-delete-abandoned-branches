@@ -133,7 +133,7 @@ class Github:
         default_branch = self.get_default_branch()
 
         response = self.fetch_pull_requests()
-        if response[0] is None:
+        if response[1] is None:
             raise RuntimeError("Could not get any pull request info from GraphQL.")
         closed_pull_requests = response[0]
         after_cursor = response[1]
@@ -218,7 +218,7 @@ class Github:
 
             if has_next_page is True:
                 response = self.fetch_pull_requests(after_cursor=after_cursor)
-                if response[0] is None:
+                if response[1] is None:
                     # If we can't get any more pull requests, return whatever we have
                     if len(deletable_branches) > 0:
                         print(f'Could not get any more pull requests. Returning {len(deletable_branches)} branches')
