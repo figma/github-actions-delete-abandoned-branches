@@ -411,6 +411,7 @@ class Github:
             pull_requests.append(pull_request)
 
         after_cursor = data["data"]["repository"]["pullRequests"]["pageInfo"]["endCursor"]
+        print(f"after_cursor: {after_cursor}")
         has_next_page = data["data"]["repository"]["pullRequests"]["pageInfo"]["hasNextPage"]
 
         return (pull_requests, after_cursor, has_next_page)
