@@ -133,6 +133,8 @@ class Github:
         default_branch = self.get_default_branch()
 
         response = self.fetch_pull_requests()
+        if response[0] is None:
+            raise RuntimeError("Could not get any pull request info from GraphQL.")
         closed_pull_requests = response[0]
         after_cursor = response[1]
         has_next_page = response[2]
@@ -216,6 +218,13 @@ class Github:
 
             if has_next_page is True:
                 response = self.fetch_pull_requests(after_cursor=after_cursor)
+                if response[0] is None:
+                    # If we can't get any more pull requests, return whatever we have
+                    if len(deletable_branches) > 0:
+                        print(f'Could not get any more pull requests. Returning {len(deletable_branches)} branches')
+                        return deletable_branches
+                    else:
+                        raise RuntimeError("Could not get any pull request info from GraphQL.")
                 closed_pull_requests = response[0]
                 after_cursor = response[1]
                 has_next_page = response[2]
@@ -375,25 +384,28 @@ class Github:
 
     def fetch_pull_requests(self, after_cursor: str = None):
         pull_requests = []
-        counts = [30, 20, 10]
         data = {}
+        attempts = 4
         
-        for count in counts:
+        while attempts > 0:
             try:
                 data = self.client.execute(
-                    query=self.make_pull_request_query(count, after_cursor),
+                    query=self.make_pull_request_query(20, after_cursor),
                     headers={"Authorization": "Bearer {}".format(self.token)},
                 )
                 if "data" in data:
                     break
 
             except Exception as e:
-                print(e, data)
-                print(f"Could not get GraphQL result, retrying with count: {count}")
-                sleep(60/count)
+                print(f"Error fetching GraphQL result:\n{e}\ndata: {data}")
+                attempts -= 1
+                if attempts > 0:
+                    exponential_backoff_seconds = 3 ** (5 - attempts)
+                    print(f"Retrying in {exponential_backoff_seconds} seconds (attempt {5 - attempts})\n")
+                    sleep(exponential_backoff_seconds)
 
         if "data" not in data:
-            raise RuntimeError("Could not get pull request info from GraphQL after three tries")
+            return ([], None, False)
 
         for pull_request in data["data"]["repository"]["pullRequests"]["nodes"]:
             pull_requests.append(pull_request)
